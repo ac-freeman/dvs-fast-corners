@@ -5,7 +5,9 @@ use std::path::Path;
 use clap::Parser;
 use aedat::base::Decoder;
 use aedat::events_generated::Event;
+use image::ImageBuffer;
 use ndarray::{Array, Array2};
+use show_image::create_window;
 
 /// Command line argument parser
 #[derive(Parser, Debug, Default)]
@@ -16,6 +18,7 @@ pub struct MyArgs {
     pub(crate) input: String,
 }
 
+#[show_image::main]
 fn main() -> Result<(), Box<dyn Error>> {
     let args: MyArgs = MyArgs::parse();
     let file_path = args.input.as_str();
@@ -23,11 +26,20 @@ fn main() -> Result<(), Box<dyn Error>> {
     // let bufreader = BufReader::new(File::open(file_path)?);
     let mut aedat_decoder = Decoder::new_from_file(Path::new(args.input.as_str()))?;
 
-    let mut detector = FastDetector::new(true, 346, 260);
+    let mut detector = FastDetector::new(true, 260, 346);
+
+    // Create an Image from the detector's sae
+    let mut img = ImageBuffer::new(346, 260);
+
+    let window = create_window("image", Default::default())?;
+
 
     loop {
         if let Some(packet_res) = aedat_decoder.next() {
             let packet = packet_res?;
+            if packet.stream_id != 0 {
+                continue;
+            }
 
             println!("{:?}", packet);
             let event_packet =
@@ -44,10 +56,20 @@ fn main() -> Result<(), Box<dyn Error>> {
             };
 
             for event in event_arr {
-                println!("{:?}", event);
+                if detector.is_feature(event, 1) {
+                    println!("feature");
+
+                    // Convert the detector's sae to an Image for display
+                    for (x, y, pixel) in img.enumerate_pixels_mut() {
+                        *pixel = image::Rgb([detector.sae_[0][[y as usize, x as usize]] as u8, detector.sae_[0][[y as usize, x as usize]] as u8, detector.sae_[0][[y as usize, x as usize]] as u8]);
+                    }
+
+                    // Display the image with show-image crate
+                    window.set_image("image-001", img.clone())?;
+                    // Update
+                }
+
             }
-
-
         } else {
             break;
         }
@@ -102,7 +124,6 @@ impl FastDetector {
     }
 
     fn is_feature(&mut self, e: &Event, max_scale: usize) -> bool {
-        // todo!()
 
         // Update SAE.
         let pol = if e.on() { 1 } else { 0 };
