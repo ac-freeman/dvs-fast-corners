@@ -7,7 +7,7 @@ use aedat::base::Decoder;
 use aedat::events_generated::Event;
 use image::{ImageBuffer, Rgb};
 use ndarray::{Array, Array2};
-use show_image::create_window;
+use show_image::{create_window, WindowOptions};
 
 /// Command line argument parser
 #[derive(Parser, Debug, Default)]
@@ -21,23 +21,22 @@ pub struct MyArgs {
 #[show_image::main]
 fn main() -> Result<(), Box<dyn Error>> {
     let args: MyArgs = MyArgs::parse();
-    let file_path = args.input.as_str();
 
-    // let bufreader = BufReader::new(File::open(file_path)?);
     let mut aedat_decoder = Decoder::new_from_file(Path::new(args.input.as_str()))?;
 
     let mut detector = FastDetector::new(true, 260, 346);
-
-    // Create an Image from the detector's sae
-    let mut img = ImageBuffer::new(346, 260);
 
     // Create an Image for showing the live event view
     let mut img_events: ImageBuffer<Rgb<u8>, Vec<u8>> = ImageBuffer::new(346, 260);
     let mut running_t = None;
     let mut frame_interval_t = 1e6 as i64 / 60;  // 60 fps
 
-    let window = create_window("image", Default::default())?;
-    let window_2 = create_window("image-dvs", Default::default())?;
+    // let window = create_window("image", Default::default())?;
+    let window = create_window("image-dvs", WindowOptions {
+        preserve_aspect_ratio: true,
+        size: Some([346*2, 260*2]),
+        ..Default::default()
+    })?;
 
 
     loop {
@@ -66,7 +65,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                     Some(t) if event.t() > t + frame_interval_t  => {
                         running_t = Some(event.t());
                         // Display the image with show-image crate
-                        window_2.set_image("image-dvs", img_events.clone())?;
+                        window.set_image("image-dvs", img_events.clone())?;
                         img_events = ImageBuffer::new(346, 260);
                     }
                     Some(t) => {
@@ -76,16 +75,12 @@ fn main() -> Result<(), Box<dyn Error>> {
                 }
 
                 if detector.is_feature(event, 1) {
-                    // println!("feature");
-
-                    // Convert the detector's sae to an Image for display
-                    for (x, y, pixel) in img.enumerate_pixels_mut() {
-                        *pixel = image::Rgb([detector.sae_[0][[y as usize, x as usize]] as u8, detector.sae_[0][[y as usize, x as usize]] as u8, detector.sae_[0][[y as usize, x as usize]] as u8]);
+                    // Color the pixels in a + centered on it white
+                    let radius = 2;
+                    for i in -radius..=radius {
+                        img_events.get_pixel_mut((event.x() as i32 + i) as u32, (event.y() as i32) as u32).0 = [255, 255, 255];
+                        img_events.get_pixel_mut((event.x() as i32) as u32, (event.y() as i32 + i) as u32).0 = [255, 255, 255];
                     }
-
-                    // Display the image with show-image crate
-                    // window.set_image("image-001", img.clone())?;
-                    // Update
                 }
 
             }
@@ -94,7 +89,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         }
     }
 
-    println!("Hello, world!");
+    println!("Finished!");
 
     Ok(())
 }

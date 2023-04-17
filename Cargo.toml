@@ -14,4 +14,4 @@ show-image = {version = "0.13.1", features = ["image"]}
 
 [profile.release]
 lto = true
-opt-level = 2
+opt-level = 3
