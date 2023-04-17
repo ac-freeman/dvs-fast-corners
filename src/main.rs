@@ -7,6 +7,9 @@ use show_image::{create_window, WindowOptions};
 use std::error::Error;
 use std::path::Path;
 
+const WIDTH: usize = 346;
+const HEIGHT: usize = 260;
+
 /// Command line argument parser
 #[derive(Parser, Debug, Default)]
 #[clap(author, version, about, long_about = None)]
@@ -22,10 +25,11 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let mut aedat_decoder = Decoder::new_from_file(Path::new(args.input.as_str()))?;
 
-    let mut detector = FastDetector::new(260, 346);
+    let mut detector = FastDetector::new(HEIGHT, WIDTH);
 
     // Create an Image for showing the live event view
-    let mut img_events: ImageBuffer<Rgb<u8>, Vec<u8>> = ImageBuffer::new(346, 260);
+    let mut img_events: ImageBuffer<Rgb<u8>, Vec<u8>> =
+        ImageBuffer::new(WIDTH as u32, HEIGHT as u32);
     let mut running_t = None;
     let frame_interval_t = 1e6 as i64 / 60; // 60 fps
 
@@ -33,7 +37,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         "image-dvs",
         WindowOptions {
             preserve_aspect_ratio: true,
-            size: Some([346 * 2, 260 * 2]),
+            size: Some([WIDTH as u32 * 2, HEIGHT as u32 * 2]),
             ..Default::default()
         },
     )?;
@@ -65,7 +69,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                         running_t = Some(event.t());
                         // Display the image with show-image crate
                         window.set_image("image-dvs", img_events.clone())?;
-                        img_events = ImageBuffer::new(346, 260);
+                        img_events = ImageBuffer::new(WIDTH as u32, HEIGHT as u32);
                     }
                     Some(_) => {
                         let color_idx = if event.on() { 0 } else { 1 };
