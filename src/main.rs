@@ -5,7 +5,7 @@ use std::path::Path;
 use clap::Parser;
 use aedat::base::Decoder;
 use aedat::events_generated::Event;
-use image::ImageBuffer;
+use image::{ImageBuffer, Rgb};
 use ndarray::{Array, Array2};
 use show_image::create_window;
 
@@ -31,7 +31,13 @@ fn main() -> Result<(), Box<dyn Error>> {
     // Create an Image from the detector's sae
     let mut img = ImageBuffer::new(346, 260);
 
+    // Create an Image for showing the live event view
+    let mut img_events: ImageBuffer<Rgb<u8>, Vec<u8>> = ImageBuffer::new(346, 260);
+    let mut running_t = None;
+    let mut frame_interval_t = 1e6 as i64 / 60;  // 60 fps
+
     let window = create_window("image", Default::default())?;
+    let window_2 = create_window("image-dvs", Default::default())?;
 
 
     loop {
@@ -41,7 +47,6 @@ fn main() -> Result<(), Box<dyn Error>> {
                 continue;
             }
 
-            println!("{:?}", packet);
             let event_packet =
                 match aedat::events_generated::size_prefixed_root_as_event_packet(&packet.buffer) {
                     Ok(result) => result,
@@ -56,8 +61,22 @@ fn main() -> Result<(), Box<dyn Error>> {
             };
 
             for event in event_arr {
+                match running_t {
+                    None => running_t = Some(event.t()),
+                    Some(t) if event.t() > t + frame_interval_t  => {
+                        running_t = Some(event.t());
+                        // Display the image with show-image crate
+                        window_2.set_image("image-dvs", img_events.clone())?;
+                        img_events = ImageBuffer::new(346, 260);
+                    }
+                    Some(t) => {
+                        let color_idx = if event.on() { 0 } else { 1 };
+                        img_events.get_pixel_mut(event.x() as u32, event.y() as u32).0[color_idx] = 255;
+                    }
+                }
+
                 if detector.is_feature(event, 1) {
-                    println!("feature");
+                    // println!("feature");
 
                     // Convert the detector's sae to an Image for display
                     for (x, y, pixel) in img.enumerate_pixels_mut() {
@@ -65,7 +84,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                     }
 
                     // Display the image with show-image crate
-                    window.set_image("image-001", img.clone())?;
+                    // window.set_image("image-001", img.clone())?;
                     // Update
                 }
 
