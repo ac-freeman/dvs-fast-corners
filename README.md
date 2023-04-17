@@ -10,6 +10,11 @@ British Machine Vision Conference (BMVC), London, 2017.
 
 Find the original paper [here](http://rpg.ifi.uzh.ch/docs/BMVC17_Mueggler.pdf). 
 
+
+![Screenshot from 2023-04-17 17-01-36-1](https://user-images.githubusercontent.com/19912588/232610281-9a616bae-06c5-4a28-8a31-793967b34230.png)
+:-------------------------:
+Features detected over 1/60th of a second are marked with a `+`. Note the predominance around the corners of the object.
+
 ## Setup and Usage
 
 - [Install Rust](https://www.rust-lang.org/tools/install)
