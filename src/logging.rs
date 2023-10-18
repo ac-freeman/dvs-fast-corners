@@ -37,8 +37,8 @@ pub enum LogFeatureSource {
 impl LogFeature {
     pub fn from_event(event: &Event) -> Self {
         Self {
-            x: event.x,
-            y: event.y,
+            x: event.x() as u16,
+            y: event.y() as u16,
             non_max_suppression: false, // TODO ?
             source: LogFeatureSource::DVS,
         }

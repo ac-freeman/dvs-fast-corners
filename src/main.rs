@@ -9,10 +9,11 @@ use image::{ImageBuffer, Rgb};
 use ndarray::{Array, Array2};
 use show_image::{create_window, WindowOptions};
 use std::error::Error;
+use std::io::Write;
 use std::path::Path;
 use std::time::Instant;
 
-use crate::logging::{LogFeature, LogFeatureSource};
+use crate::logging::LogFeature;
 
 const WIDTH: usize = 346;
 const HEIGHT: usize = 260;
@@ -64,8 +65,6 @@ fn main() -> Result<(), Box<dyn Error>> {
         }
     }
 
-    let start = Instant::now();
-
     loop {
         if let Some(packet_res) = aedat_decoder.next() {
             let packet = packet_res?;
@@ -85,6 +84,10 @@ fn main() -> Result<(), Box<dyn Error>> {
                 None => continue,
                 Some(events) => events,
             };
+
+            let mut features_buffer = vec![];
+
+            let start = Instant::now();
 
             for event in event_arr {
                 match running_t {
@@ -118,31 +121,33 @@ fn main() -> Result<(), Box<dyn Error>> {
                     #[cfg(feature = "feature-logging")]
                     {
                         // TODO: add to buffer
+                        features_buffer.push(event);
                     }
+                }
+            }
+
+            #[cfg(feature = "feature-logging")]
+            {
+                let total_duration_nanos = start.elapsed().as_nanos();
+                if let Some(handle) = &mut log_handle {
+                    // TODO: turn this into a loop
+                    for e in features_buffer {
+                        let bytes = serde_pickle::to_vec(
+                            &LogFeature::from_event(e),
+                            Default::default(),
+                        )
+                        .unwrap();
+                        handle.write_all(&bytes).unwrap();
+                    }
+
+                    let out = format!("\nDVS FAST: {}", total_duration_nanos);
+                    handle
+                        .write_all(&serde_pickle::to_vec(&out, Default::default()).unwrap())
+                        .unwrap();
                 }
             }
         } else {
             break;
-        }
-    }
-
-    #[cfg(feature = "feature-logging")]
-    {
-        let total_duration_nanos = start.elapsed().as_nanos();
-        if let Some(handle) = &mut log_handle {
-            // TODO: turn this into a loop
-            let e: Event = Default::default();
-            let bytes = serde_pickle::to_vec(
-                &LogFeature::from_event(e),
-                Default::default(),
-            )
-            .unwrap();
-            handle.write_all(&bytes).unwrap();
-
-            let out = format!("\nDVS FAST: {}", total_duration_nanos);
-            handle
-                .write_all(&serde_pickle::to_vec(&out, Default::default()).unwrap())
-                .unwrap();
         }
     }
 
