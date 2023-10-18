@@ -16,3 +16,6 @@ Cargo.lock
 
 # binary videos
 *.aedat4
+
+# logs
+*.log

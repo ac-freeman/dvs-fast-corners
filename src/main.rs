@@ -1,19 +1,28 @@
+pub mod logging;
+
 use aedat::base::Decoder;
 use aedat::events_generated::Event;
+#[cfg(feature = "feature-logging")]
+use chrono::prelude::*;
 use clap::Parser;
 use image::{ImageBuffer, Rgb};
 use ndarray::{Array, Array2};
 use show_image::{create_window, WindowOptions};
 use std::error::Error;
 use std::path::Path;
+use std::time::Instant;
+
+use crate::logging::{LogFeature, LogFeatureSource};
 
 const WIDTH: usize = 346;
 const HEIGHT: usize = 260;
+// TODO: is this 1???
+const CHANNELS: usize = 1;
 
 /// Command line argument parser
 #[derive(Parser, Debug, Default)]
 #[clap(author, version, about, long_about = None)]
-pub struct MyArgs {
+pub struct Args {
     /// Input .aedat4 file path
     #[clap(short, long)]
     pub(crate) input: String,
@@ -21,7 +30,7 @@ pub struct MyArgs {
 
 #[show_image::main]
 fn main() -> Result<(), Box<dyn Error>> {
-    let args: MyArgs = MyArgs::parse();
+    let args: Args = Args::parse();
 
     let mut aedat_decoder = Decoder::new_from_file(Path::new(args.input.as_str()))?;
 
@@ -41,6 +50,21 @@ fn main() -> Result<(), Box<dyn Error>> {
             ..Default::default()
         },
     )?;
+
+    let mut log_handle: Option<std::fs::File> = None;
+
+    #[cfg(feature = "feature-logging")]
+    {
+        let date_time = Local::now();
+        let formatted = format!("features_{}.log", date_time.format("%d_%m_%Y_%H_%M_%S"));
+        log_handle = std::fs::File::create(formatted).ok();
+
+        if let Some(handle) = &mut log_handle {
+            writeln!(handle, "{}x{}x{}", WIDTH, HEIGHT, CHANNELS).unwrap();
+        }
+    }
+
+    let start = Instant::now();
 
     loop {
         if let Some(packet_res) = aedat_decoder.next() {
@@ -90,10 +114,35 @@ fn main() -> Result<(), Box<dyn Error>> {
                             .get_pixel_mut((event.x() as i32) as u32, (event.y() as i32 + i) as u32)
                             .0 = [255, 255, 255];
                     }
+
+                    #[cfg(feature = "feature-logging")]
+                    {
+                        // TODO: add to buffer
+                    }
                 }
             }
         } else {
             break;
+        }
+    }
+
+    #[cfg(feature = "feature-logging")]
+    {
+        let total_duration_nanos = start.elapsed().as_nanos();
+        if let Some(handle) = &mut log_handle {
+            // TODO: turn this into a loop
+            let e: Event = Default::default();
+            let bytes = serde_pickle::to_vec(
+                &LogFeature::from_event(e),
+                Default::default(),
+            )
+            .unwrap();
+            handle.write_all(&bytes).unwrap();
+
+            let out = format!("\nDVS FAST: {}", total_duration_nanos);
+            handle
+                .write_all(&serde_pickle::to_vec(&out, Default::default()).unwrap())
+                .unwrap();
         }
     }
 
