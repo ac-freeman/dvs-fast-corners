@@ -33,7 +33,6 @@ pub enum LogFeatureSource {
     DVS
 }
 
-
 impl LogFeature {
     pub fn from_event(event: &Event) -> Self {
         Self {
