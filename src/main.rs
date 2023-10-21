@@ -107,22 +107,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                 }
 
                 if detector.is_feature(event, 1) {
-                    // Color the pixels in a + centered on it white
-                    let radius = 2;
-                    for i in -radius..=radius {
-                        img_events
-                            .get_pixel_mut((event.x() as i32 + i) as u32, (event.y() as i32) as u32)
-                            .0 = [255, 255, 255];
-                        img_events
-                            .get_pixel_mut((event.x() as i32) as u32, (event.y() as i32 + i) as u32)
-                            .0 = [255, 255, 255];
-                    }
-
-                    #[cfg(feature = "feature-logging")]
-                    {
-                        // TODO: add to buffer
-                        features_buffer.push(event);
-                    }
+                    features_buffer.push(event);
                 }
             }
 
@@ -130,8 +115,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             {
                 let total_duration_nanos = start.elapsed().as_nanos();
                 if let Some(handle) = &mut log_handle {
-                    // TODO: turn this into a loop
-                    for e in features_buffer {
+                    for e in &features_buffer {
                         let bytes = serde_pickle::to_vec(
                             &LogFeature::from_event(e),
                             Default::default(),
@@ -144,6 +128,20 @@ fn main() -> Result<(), Box<dyn Error>> {
                     handle
                         .write_all(&serde_pickle::to_vec(&out, Default::default()).unwrap())
                         .unwrap();
+                }
+            }
+
+            // actually write events to window
+            for event in features_buffer {
+                // Color the pixels in a + centered on it white
+                let radius = 2;
+                for i in -radius..=radius {
+                    img_events
+                        .get_pixel_mut((event.x() as i32 + i) as u32, (event.y() as i32) as u32)
+                        .0 = [255, 255, 255];
+                    img_events
+                        .get_pixel_mut((event.x() as i32) as u32, (event.y() as i32 + i) as u32)
+                        .0 = [255, 255, 255];
                 }
             }
         } else {

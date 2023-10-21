@@ -38,7 +38,7 @@ impl LogFeature {
         Self {
             x: event.x() as u16,
             y: event.y() as u16,
-            non_max_suppression: false, // TODO ?
+            non_max_suppression: false,
             source: LogFeatureSource::DVS,
         }
     }
