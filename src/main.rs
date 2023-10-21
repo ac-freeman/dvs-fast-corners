@@ -52,7 +52,8 @@ fn main() -> Result<(), Box<dyn Error>> {
         },
     )?;
 
-    let mut log_handle: Option<std::fs::File> = None;
+    #[cfg(feature = "feature-logging")]
+    let mut log_handle = None;
 
     #[cfg(feature = "feature-logging")]
     {
