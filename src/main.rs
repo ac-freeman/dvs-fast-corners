@@ -90,22 +90,6 @@ fn main() -> Result<(), Box<dyn Error>> {
             let start = Instant::now();
 
             for event in event_arr {
-                match running_t {
-                    None => running_t = Some(event.t()),
-                    Some(t) if event.t() > t + frame_interval_t => {
-                        running_t = Some(event.t());
-                        // Display the image with show-image crate
-                        window.set_image("image-dvs", img_events.clone())?;
-                        img_events = ImageBuffer::new(WIDTH as u32, HEIGHT as u32);
-                    }
-                    Some(_) => {
-                        let color_idx = if event.on() { 0 } else { 1 };
-                        img_events
-                            .get_pixel_mut(event.x() as u32, event.y() as u32)
-                            .0[color_idx] = 255;
-                    }
-                }
-
                 if detector.is_feature(event, 1) {
                     features_buffer.push(event);
                 }
@@ -128,6 +112,24 @@ fn main() -> Result<(), Box<dyn Error>> {
                     handle
                         .write_all(&serde_pickle::to_vec(&out, Default::default()).unwrap())
                         .unwrap();
+                }
+            }
+
+            // Restart window if there's an event
+            for event in event_arr {
+                match running_t {
+                    None => running_t = Some(event.t()),
+                    Some(t) if event.t() > t + frame_interval_t => {
+                        running_t = Some(event.t());
+                        window.set_image("image-dvs", img_events.clone())?;
+                        img_events = ImageBuffer::new(WIDTH as u32, HEIGHT as u32);
+                    }
+                    Some(_) => {
+                        let color_idx = if event.on() { 0 } else { 1 };
+                        img_events
+                            .get_pixel_mut(event.x() as u32, event.y() as u32)
+                            .0[color_idx] = 255;
+                    }
                 }
             }
 
