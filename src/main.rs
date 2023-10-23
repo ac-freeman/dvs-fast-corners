@@ -2,21 +2,12 @@ mod logging;
 
 use aedat::base::Decoder;
 use aedat::events_generated::Event;
-#[cfg(feature = "feature-logging")]
-use chrono::prelude::*;
 use clap::Parser;
 use image::{ImageBuffer, Rgb};
 use ndarray::{Array, Array2};
 use show_image::{create_window, WindowOptions};
-use std::collections::HashSet;
 use std::error::Error;
-#[cfg(feature = "feature-logging")]
-use std::io::Write;
 use std::path::Path;
-use std::time::Instant;
-
-#[cfg(feature = "feature-logging")]
-use crate::logging::LogFeature;
 
 const WIDTH: usize = 346;
 const HEIGHT: usize = 260;
@@ -24,7 +15,7 @@ const HEIGHT: usize = 260;
 /// Command line argument parser
 #[derive(Parser, Debug, Default)]
 #[clap(author, version, about, long_about = None)]
-pub struct Args {
+pub struct MyArgs {
     /// Input .aedat4 file path
     #[clap(short, long)]
     pub(crate) input: String,
@@ -32,8 +23,19 @@ pub struct Args {
 
 #[show_image::main]
 fn main() -> Result<(), Box<dyn Error>> {
-    let args: Args = Args::parse();
+    let args: MyArgs = MyArgs::parse();
 
+    #[cfg(feature = "feature-logging")]
+    crate::logging::logging_main(args)?;
+    #[cfg(not(feature = "feature-logging"))]
+    non_logging_main(args)?;
+
+    println!("Finished!");
+
+    Ok(())
+}
+
+pub fn non_logging_main(args: MyArgs) -> Result<(), Box<dyn Error>> {
     let mut aedat_decoder = Decoder::new_from_file(Path::new(args.input.as_str()))?;
 
     let mut detector = FastDetector::new(HEIGHT, WIDTH);
@@ -52,22 +54,6 @@ fn main() -> Result<(), Box<dyn Error>> {
             ..Default::default()
         },
     )?;
-
-    #[allow(unused_assignments, unused_mut, unused_variables)]
-    let mut log_handle: Option<std::fs::File> = None;
-
-    #[cfg(feature = "feature-logging")]
-    {
-        let date_time = Local::now();
-        let formatted = format!("features_{}.log", date_time.format("%d_%m_%Y_%H_%M_%S"));
-        log_handle = std::fs::File::create(formatted).ok();
-
-        if let Some(handle) = &mut log_handle {
-            writeln!(handle, "{}x{}x{}", WIDTH, HEIGHT, 1).unwrap();
-        }
-    }
-
-    let mut features = HashSet::new();
 
     loop {
         if let Some(packet_res) = aedat_decoder.next() {
@@ -89,55 +75,12 @@ fn main() -> Result<(), Box<dyn Error>> {
                 Some(events) => events,
             };
 
-            let _start = Instant::now();
-
-            for event in event_arr {
-                if detector.is_feature(event, 1) {
-                    features.insert((event.x(), event.y()));
-                } else {
-                    features.remove(&(event.x(), event.y()));
-                }
-            }
-
-            #[cfg(feature = "feature-logging")]
-            {
-                let total_duration_nanos = _start.elapsed().as_nanos();
-                if let Some(handle) = &mut log_handle {
-                    for (x, y) in &features {
-                        let bytes = serde_pickle::to_vec(
-                            &LogFeature::from_coord(*x, *y),
-                            Default::default(),
-                        )
-                        .unwrap();
-                        handle.write_all(&bytes).unwrap();
-                    }
-
-                    let out = format!("\nDVS FAST: {}", total_duration_nanos);
-                    handle
-                        .write_all(&serde_pickle::to_vec(&out, Default::default()).unwrap())
-                        .unwrap();
-                }
-            }
-
             for event in event_arr {
                 match running_t {
                     None => running_t = Some(event.t()),
                     Some(t) if event.t() > t + frame_interval_t => {
                         running_t = Some(event.t());
-
-                        for (x, y) in &features {
-                            // Color the pixels in a + centered on it white
-                            let radius = 2;
-                            for i in -radius..=radius {
-                                img_events
-                                    .get_pixel_mut((*x as i32 + i) as u32, (*y as i32) as u32)
-                                    .0 = [255, 255, 255];
-                                img_events
-                                    .get_pixel_mut((*x as i32) as u32, (*y as i32 + i) as u32)
-                                    .0 = [255, 255, 255];
-                            }
-                        }
-
+                        // Display the image with show-image crate
                         window.set_image("image-dvs", img_events.clone())?;
                         img_events = ImageBuffer::new(WIDTH as u32, HEIGHT as u32);
                     }
@@ -148,14 +91,24 @@ fn main() -> Result<(), Box<dyn Error>> {
                             .0[color_idx] = 255;
                     }
                 }
+
+                if detector.is_feature(event, 1) {
+                    // Color the pixels in a + centered on it white
+                    let radius = 2;
+                    for i in -radius..=radius {
+                        img_events
+                            .get_pixel_mut((event.x() as i32 + i) as u32, (event.y() as i32) as u32)
+                            .0 = [255, 255, 255];
+                        img_events
+                            .get_pixel_mut((event.x() as i32) as u32, (event.y() as i32 + i) as u32)
+                            .0 = [255, 255, 255];
+                    }
+                }
             }
         } else {
             break;
         }
     }
-
-    println!("Finished!");
-
     Ok(())
 }
 

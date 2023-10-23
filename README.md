@@ -20,6 +20,7 @@ Features detected over 1/60th of a second are marked with a `+`. Note the predom
 - [Install Rust](https://www.rust-lang.org/tools/install)
 - Clone this repository and `cd` into it
 - Run `cargo run --release -- --input "/path/to/aedat4/file"`
+- Log the detected features to a file with `cargo run --features "feature-logging" --release -- --input "/path/to/aedat4/file"`
 
 Setup is simple, with no non-Rust requirements.
 
