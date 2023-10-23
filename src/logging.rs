@@ -1,5 +1,5 @@
-/// This is partially imported from https://github.com/ac-freeman/adder-codec-rs/blob/feature-eval-log/adder-codec-rs/src/utils/logging.rs
-/// Really, these should be synchronized in some way (TODO?)
+#![cfg(feature = "feature-logging")]
+/// Logging tools for comparing features. Copied from https://github.com/ac-freeman/adder-codec-rs/blob/feature-eval-log/adder-codec-rs/src/utils/logging.rs
 use aedat::events_generated::Event;
 use serde::ser::SerializeStruct;
 use serde::{Serialize, Serializer};
@@ -14,8 +14,8 @@ pub struct LogFeature {
 
 impl Serialize for LogFeature {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-        where
-            S: Serializer,
+    where
+        S: Serializer,
     {
         let mut state = serializer.serialize_struct("LogFeature", 4)?;
         state.serialize_field("x", &self.x)?;
@@ -26,11 +26,12 @@ impl Serialize for LogFeature {
     }
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Clone, Copy, Serialize)]
 pub enum LogFeatureSource {
     ADDER,
     OpenCV,
-    DVS
+    DVS,
 }
 
 impl LogFeature {

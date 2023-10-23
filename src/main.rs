@@ -1,4 +1,4 @@
-pub mod logging;
+mod logging;
 
 use aedat::base::Decoder;
 use aedat::events_generated::Event;
@@ -9,16 +9,16 @@ use image::{ImageBuffer, Rgb};
 use ndarray::{Array, Array2};
 use show_image::{create_window, WindowOptions};
 use std::error::Error;
+#[cfg(feature = "feature-logging")]
 use std::io::Write;
 use std::path::Path;
 use std::time::Instant;
 
+#[cfg(feature = "feature-logging")]
 use crate::logging::LogFeature;
 
 const WIDTH: usize = 346;
 const HEIGHT: usize = 260;
-// TODO: is this 1???
-const CHANNELS: usize = 1;
 
 /// Command line argument parser
 #[derive(Parser, Debug, Default)]
@@ -52,8 +52,8 @@ fn main() -> Result<(), Box<dyn Error>> {
         },
     )?;
 
-    #[cfg(feature = "feature-logging")]
-    let mut log_handle = None;
+    #[allow(unused_assignments, unused_mut, unused_variables)]
+    let mut log_handle: Option<std::fs::File> = None;
 
     #[cfg(feature = "feature-logging")]
     {
@@ -62,7 +62,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         log_handle = std::fs::File::create(formatted).ok();
 
         if let Some(handle) = &mut log_handle {
-            writeln!(handle, "{}x{}x{}", WIDTH, HEIGHT, CHANNELS).unwrap();
+            writeln!(handle, "{}x{}x{}", WIDTH, HEIGHT, 1).unwrap();
         }
     }
 
@@ -88,7 +88,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
             let mut features_buffer = vec![];
 
-            let start = Instant::now();
+            let _start = Instant::now();
 
             for event in event_arr {
                 if detector.is_feature(event, 1) {
@@ -98,14 +98,12 @@ fn main() -> Result<(), Box<dyn Error>> {
 
             #[cfg(feature = "feature-logging")]
             {
-                let total_duration_nanos = start.elapsed().as_nanos();
+                let total_duration_nanos = _start.elapsed().as_nanos();
                 if let Some(handle) = &mut log_handle {
                     for e in &features_buffer {
-                        let bytes = serde_pickle::to_vec(
-                            &LogFeature::from_event(e),
-                            Default::default(),
-                        )
-                        .unwrap();
+                        let bytes =
+                            serde_pickle::to_vec(&LogFeature::from_event(e), Default::default())
+                                .unwrap();
                         handle.write_all(&bytes).unwrap();
                     }
 
@@ -116,7 +114,6 @@ fn main() -> Result<(), Box<dyn Error>> {
                 }
             }
 
-            // Restart window if there's an event
             for event in event_arr {
                 match running_t {
                     None => running_t = Some(event.t()),
@@ -134,7 +131,6 @@ fn main() -> Result<(), Box<dyn Error>> {
                 }
             }
 
-            // actually write events to window
             for event in features_buffer {
                 // Color the pixels in a + centered on it white
                 let radius = 2;

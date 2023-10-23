@@ -5,7 +5,7 @@ edition = "2021"
 
 
 [features]
-default = ["feature-logging"]
+default = []
 feature-logging = ["dep:chrono", "dep:serde", "dep:serde_bytes", "dep:serde-pickle"]
 
 [dependencies]
