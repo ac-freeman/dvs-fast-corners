@@ -1,6 +1,5 @@
 #![cfg(feature = "feature-logging")]
 /// Logging tools for comparing features. Copied from https://github.com/ac-freeman/adder-codec-rs/blob/feature-eval-log/adder-codec-rs/src/utils/logging.rs
-use aedat::events_generated::Event;
 use serde::ser::SerializeStruct;
 use serde::{Serialize, Serializer};
 
@@ -35,10 +34,10 @@ pub enum LogFeatureSource {
 }
 
 impl LogFeature {
-    pub fn from_event(event: &Event) -> Self {
+    pub fn from_coord(x: i16, y: i16) -> Self {
         Self {
-            x: event.x() as u16,
-            y: event.y() as u16,
+            x: x as u16,
+            y: y as u16,
             non_max_suppression: false,
             source: LogFeatureSource::DVS,
         }

@@ -8,6 +8,7 @@ use clap::Parser;
 use image::{ImageBuffer, Rgb};
 use ndarray::{Array, Array2};
 use show_image::{create_window, WindowOptions};
+use std::collections::HashSet;
 use std::error::Error;
 #[cfg(feature = "feature-logging")]
 use std::io::Write;
@@ -66,6 +67,8 @@ fn main() -> Result<(), Box<dyn Error>> {
         }
     }
 
+    let mut features = HashSet::new();
+
     loop {
         if let Some(packet_res) = aedat_decoder.next() {
             let packet = packet_res?;
@@ -86,13 +89,13 @@ fn main() -> Result<(), Box<dyn Error>> {
                 Some(events) => events,
             };
 
-            let mut features_buffer = vec![];
-
             let _start = Instant::now();
 
             for event in event_arr {
                 if detector.is_feature(event, 1) {
-                    features_buffer.push(event);
+                    features.insert((event.x(), event.y()));
+                } else {
+                    features.remove(&(event.x(), event.y()));
                 }
             }
 
@@ -100,10 +103,12 @@ fn main() -> Result<(), Box<dyn Error>> {
             {
                 let total_duration_nanos = _start.elapsed().as_nanos();
                 if let Some(handle) = &mut log_handle {
-                    for e in &features_buffer {
-                        let bytes =
-                            serde_pickle::to_vec(&LogFeature::from_event(e), Default::default())
-                                .unwrap();
+                    for (x, y) in &features {
+                        let bytes = serde_pickle::to_vec(
+                            &LogFeature::from_coord(*x, *y),
+                            Default::default(),
+                        )
+                        .unwrap();
                         handle.write_all(&bytes).unwrap();
                     }
 
@@ -119,6 +124,20 @@ fn main() -> Result<(), Box<dyn Error>> {
                     None => running_t = Some(event.t()),
                     Some(t) if event.t() > t + frame_interval_t => {
                         running_t = Some(event.t());
+
+                        for (x, y) in &features {
+                            // Color the pixels in a + centered on it white
+                            let radius = 2;
+                            for i in -radius..=radius {
+                                img_events
+                                    .get_pixel_mut((*x as i32 + i) as u32, (*y as i32) as u32)
+                                    .0 = [255, 255, 255];
+                                img_events
+                                    .get_pixel_mut((*x as i32) as u32, (*y as i32 + i) as u32)
+                                    .0 = [255, 255, 255];
+                            }
+                        }
+
                         window.set_image("image-dvs", img_events.clone())?;
                         img_events = ImageBuffer::new(WIDTH as u32, HEIGHT as u32);
                     }
@@ -128,19 +147,6 @@ fn main() -> Result<(), Box<dyn Error>> {
                             .get_pixel_mut(event.x() as u32, event.y() as u32)
                             .0[color_idx] = 255;
                     }
-                }
-            }
-
-            for event in features_buffer {
-                // Color the pixels in a + centered on it white
-                let radius = 2;
-                for i in -radius..=radius {
-                    img_events
-                        .get_pixel_mut((event.x() as i32 + i) as u32, (event.y() as i32) as u32)
-                        .0 = [255, 255, 255];
-                    img_events
-                        .get_pixel_mut((event.x() as i32) as u32, (event.y() as i32 + i) as u32)
-                        .0 = [255, 255, 255];
                 }
             }
         } else {
