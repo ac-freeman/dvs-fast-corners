@@ -1,3 +1,5 @@
+mod logging;
+
 use aedat::base::Decoder;
 use aedat::events_generated::Event;
 use clap::Parser;
@@ -23,6 +25,17 @@ pub struct MyArgs {
 fn main() -> Result<(), Box<dyn Error>> {
     let args: MyArgs = MyArgs::parse();
 
+    #[cfg(feature = "feature-logging")]
+    crate::logging::logging_main(args)?;
+    #[cfg(not(feature = "feature-logging"))]
+    non_logging_main(args)?;
+
+    println!("Finished!");
+
+    Ok(())
+}
+
+pub fn non_logging_main(args: MyArgs) -> Result<(), Box<dyn Error>> {
     let mut aedat_decoder = Decoder::new_from_file(Path::new(args.input.as_str()))?;
 
     let mut detector = FastDetector::new(HEIGHT, WIDTH);
@@ -96,9 +109,6 @@ fn main() -> Result<(), Box<dyn Error>> {
             break;
         }
     }
-
-    println!("Finished!");
-
     Ok(())
 }
 
